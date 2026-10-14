@@ -1,0 +1,12 @@
+# Entorno virtual
+env/
+.venv/
+
+# Archivos temporales de Python y Jupyter
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+
+# Modelos entrenados pesados o archivos de checkpoints
+saves/
+*.zip

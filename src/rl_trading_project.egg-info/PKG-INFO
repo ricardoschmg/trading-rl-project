@@ -1,0 +1,81 @@
+Metadata-Version: 2.4
+Name: rl_trading_project
+Version: 0.1.0
+Summary: Agente de Deep Reinforcement Learning (DQN) para trading financiero
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: gymnasium>=0.29.0
+Requires-Dist: stable-baselines3[extra]>=2.0.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: matplotlib>=3.7.0
+Requires-Dist: seaborn>=0.12.0
+Requires-Dist: jupyter>=1.0.0
+Requires-Dist: yfinance>=0.2.0
+
+# Proyecto: Estrategia de Inversión mediante Deep Reinforcement Learning (DRL)
+
+## 1. Formulación del Problema como Proceso de Decisión de Markov (MDP)
+
+El problema de inversión se ha modelado como un entorno secuencial donde un agente interactúa con datos históricos de mercado para aprender una política óptima de asignación de capital, considerando no solo el retorno, sino también el riesgo (*drawdown*) y los costos de transacción.
+
+### 1.1. Espacio de Acciones ($\mathcal{A}$)
+Se ha definido un espacio de acciones discreto para facilitar el uso de arquitecturas de Deep Reinforcement Learning basadas en valores (como DQN):
+- **0 ($0\%$):** Mantener todo el capital en efectivo (fuera del mercado).
+- **1 ($50\%$):** Mantener el $50\%$ del capital invertido en el activo y el $50\%$ en efectivo.
+- **2 ($100\%$):** Mantener el $100\%$ del capital invertido en el activo.
+
+**Justificación económica:** Este nivel de discretización evita el ruido de micro-operaciones excesivas, permitiendo transiciones estables entre exposición total, neutralidad o cobertura en efectivo, penalizando el cambio constante mediante costos por transacción (*basis points*).
+
+### 1.2. Espacio de Estados / Observaciones ($S_t$)
+En cada paso temporal $t$, el agente observa un vector normalizado de características técnicas que describen el estado del mercado sin incurrir en fuga de información (*lookahead bias*):
+1. **Retorno reciente ($R_{t, \text{short}}$):** Cambio porcentual del precio en las últimas 5 velas.
+2. **Distancia a la Media Móvil ($Price - MA_{20}$):** Desviación del precio respecto a su tendencia a 20 periodos.
+3. **Volatilidad reciente ($\sigma_{20}$):** Desviación estándar de los retornos en una ventana deslizante de 20 periodos.
+4. **RSI (14 periodos):** Indicador de sobrecompra/sobreventa.
+5. **Posición anterior ($Pos_{t-1}$):** Exposición actual del portafolio ($0, 0.5 \text{ o } 1.0$), vital para que la red neuronal evalúe el costo de rebalanceo.
+
+> **Nota de Rigurosidad Metodológica:** Para evitar el *data leakage*, todos los parámetros de normalización (medias, desviaciones) se calculan estricta y únicamente sobre el conjunto de entrenamiento.
+
+> **Esta es una prueba:**
+
+
+
+```mermaid
+graph TD
+    %% 1. Datos e Ingesta
+    subgraph F1 ["Fase 1: Datos"]
+        A["Dataset Histórico del Profesor <br> CSV: Open, High, Low, Close, Volume"] --> B["Análisis Exploratorio EDA <br> notebooks/eda.ipynb"]
+        B --> C["División Temporal Estricta <br> Entrenamiento vs Held-out"]
+    end
+
+    %% 2. Entorno de Simulación
+    subgraph F2 ["Fase 2: Simulación"]
+        C --> D["Entorno Personalizado Lookahead-Safe <br> src/environment.py"]
+        D -->|"Cálculo de Portafolio"| E["Gestión de Posiciones: 0%, 50%, 100%"]
+        D -->|"Aplicación de Reglas"| F["Costos de Transacción (Basis Points)"]
+        D -->|"Evaluación"| G["Función de Recompensa / Step"]
+    end
+
+    %% 3. El Agente de DRL y Baselines
+    subgraph F3 ["Fase 3: Aprendizaje"]
+        G -->|"Estado: Indicadores"| H["Agente DQN / Red Neuronal <br> src/agent.py"]
+        H -->|"Actualización de Pesos W"| I["Script de Entrenamiento <br> src/train.py"]
+        
+        %% Baselines
+        C --> J["Estrategias Baselines <br> src/baselines.py"]
+        J --> J1["Buy and Hold"]
+        J --> J2["Agente Aleatorio"]
+    end
+
+    %% 4. Evaluación y Resultados
+    subgraph F4 ["Fase 4: Pruebas y Resultados"]
+        I -->|"Modelo Guardado"| K["Script de Evaluación en Held-out <br> src/evaluate.py"]
+        J1 --> K
+        J2 --> K
+        C -->|"Datos No Vistos"| K
+        
+        K --> L["Métricas: Retorno Acumulado, <br> Max Drawdown y Costos"]
+        L --> M["Curvas de Capital y Conclusiones"]
+    end
+```    

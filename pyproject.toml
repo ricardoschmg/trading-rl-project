@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl_trading_project"
+version = "0.1.0"
+description = "Agente de Deep Reinforcement Learning (DQN) para trading financiero"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "gymnasium>=0.29.0",
+    "stable-baselines3[extra]>=2.0.0",
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "matplotlib>=3.7.0",
+    "seaborn>=0.12.0",
+    "jupyter>=1.0.0",
+    "yfinance>=0.2.0"
+]
