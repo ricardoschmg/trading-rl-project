@@ -110,10 +110,21 @@ class TradingEnv(gym.Env):
 
     def _get_observation(self):
         current_price = float(self.df.loc[self.current_step, 'close'])
-        # Vector de estado básico y seguro contra el futuro
+        
+        # Calcular el retorno porcentual diario del precio (si es posible)
+        if self.current_step > 0:
+            prev_price = float(self.df.loc[self.current_step - 1, 'close'])
+            price_change = (current_price - prev_price) / prev_price
+        else:
+            price_change = 0.0
+            
+        # Normalizar el balance dividiéndolo por el balance inicial
+        normalized_balance = float(self.balance) / self.initial_balance
+        
+        # Vector de estado normalizado
         return np.array([
-            current_price,
-            float(self.balance),
+            price_change,
+            normalized_balance,
             float(self.current_position)
         ], dtype=np.float32)
 
