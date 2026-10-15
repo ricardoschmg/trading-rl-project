@@ -10,3 +10,16 @@ __pycache__/
 # Modelos entrenados pesados o archivos de checkpoints
 saves/
 *.zip
+
+# Entornos virtuales y caché
+__pycache__/
+*.egg-info/
+build/
+dist/
+
+# Artefactos y bases de datos locales de MLflow (Se quedan en tu PC)
+mlflow.db
+mlruns/
+
+# Modelos entrenados locales
+saves/
