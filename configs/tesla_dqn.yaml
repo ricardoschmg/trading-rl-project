@@ -4,9 +4,9 @@ algo: dqn
 timesteps: 200_000
 eval_episodes: 10
 hyperparams:
-  learning_rate: 0.00010871653078191062
+  learning_rate: 0.0001
   buffer_size: 50_000
-  batch_size: 64
+  batch_size: 32
   learning_starts: 1000
   gamma: 0.99
 tune:
