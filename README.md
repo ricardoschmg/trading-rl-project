@@ -24,35 +24,42 @@ Este proyecto fue desarrollado con fines académicos para la clase de Reinforcem
 
 ## Instalación y Uso
 
-El proyecto está modularizado y utiliza un entorno virtual estándar. Para ejecutarlo en tu máquina, sigue estos pasos:
+Ejecuta **siempre desde la raíz del proyecto** (`trading-rl-project/`). Los scripts leen `configs/` y `data/` con rutas relativas a esa carpeta. Semilla de reproducción: **42** (`configs/tesla_dqn.yaml`).
 
 1. **Clona el repositorio y entra a la carpeta:**
    ```bash
-   git clone https://github.com/tu-usuario/rl_trading_project.git
-   cd rl_trading_project
+   git clone https://github.com/ricardoschmg/trading-rl-project.git
+   cd trading-rl-project
    ```
 
-2. **Crea y activa un entorno virtual:**
+2. **Activa el entorno Python (recomendado: `Python_MIA`) o crea uno nuevo:**
    ```bash
+   # Opción A — entorno del curso (Anaconda):
+   conda activate Python_MIA
+
+   # Opción B — entorno virtual local:
    python -m venv env
    # En Windows:
    .\env\Scripts\activate
    # En Mac/Linux:
    source env/bin/activate
+   pip install .
    ```
 
-3. **Instala las dependencias:**
-   De acuerdo al archivo `pyproject.toml`, se instalan dependencias (incluye Gymnasium, Stable-Baselines3, MLflow, Optuna, etc.):
+3. **Si usas un entorno nuevo (opción B), instala dependencias** según `pyproject.toml` (Gymnasium, Stable-Baselines3, MLflow, Optuna, PyYAML, etc.):
    ```bash
    pip install .
    ```
 
-4. **Ejecución de scripts principales:**
-   * Descargar datos y preparar datasets: `python src/EDA.ipynb` (o ejecutar el notebook).
+4. **Ejecución (en este orden):**
+   * Preparar / revisar datos: abrir y ejecutar `notebooks/EDA.ipynb` (Jupyter o VS Code / Cursor). Los CSV ya están en `data/`.
    * Entrenar el agente: `python src/train.py`
-   * Evaluar el agente entrenado: `python src/evaluate.py`
-   * Sintonizar hiperparámetros: `python src/tune.py`
-   * Ver panel de métricas: `mlflow ui` (y abrir `http://127.0.0.1:5000`)
+   * Evaluar el agente entrenado: `python src/evaluate.py` (requiere `saves/dqn_tesla_model.zip`)
+   * Baselines, mismas condiciones de test:
+     * `python src/baseline.py` — comprar y mantener
+     * `python src/random_agent.py` — agente aleatorio (semilla 42)
+   * Sintonizar hiperparámetros en validación (no usa test): `python src/tune.py`
+   * Ver panel de métricas: `mlflow ui` (abrir `http://127.0.0.1:5000`)
 
 ---
 
@@ -61,9 +68,9 @@ El proyecto está modularizado y utiliza un entorno virtual estándar. Para ejec
 Para que nuestro agente pueda "ver" el mercado y tomar decisiones sin confundirse por magnitudes muy dispares (precios altos vs. decimales), normalizamos su visión del mundo:
 
 * **El Estado (Observación):** Un vector de 3 dimensiones numéricas:
-  1. *Retorno porcentual diario del precio:* ¿Cuánto subió o bajó el precio hoy respecto a ayer?
-  2. *Balance normalizado:* Efectivo disponible dividido por el capital inicial ($10,000).
-  3. *Posición actual:* Proporción del portafolio actualmente invertida.
+  1. *Retorno de ayer:* \((P_{t-1}-P_{t-2})/P_{t-2}\). No usa el close de hoy para decidir.
+  2. *Balance normalizado:* Efectivo disponible dividido por el capital inicial ($100,000).
+  3. *Posición real:* Proporción del portafolio que quedó invertida después del trade (no el objetivo).
 * **El Espacio de Acciones:** Se define un espacio discreto (`Discrete(3)`) de asignación de portafolio:
   * `0`: 0% invertido (Quedarse en efectivo / Vender todo).
   * `1`: 50% del capital invertido.
@@ -71,30 +78,41 @@ Para que nuestro agente pueda "ver" el mercado y tomar decisiones sin confundirs
 
 ## 2. Entorno de Simulación con Costo de Operación
 
-Se Crea entorno personalizado `TradingEnv` usando la librería **Gymnasium**. 
-* **Dinámica temporal:** El entorno itera sobre datos históricos cronológicos de Tesla divididos en Train (80%) y Test (20%) para evitar mirar al futuro (*look-ahead bias*).
-* **Fricción de Mercado (Comisiones):** se implementamo un costo por operar del 0.1% (`transaction_fee = 0.001`). Cada vez que el agente cambia su porcentaje de inversión (acción), el entorno calcula el valor del trade y cobra automáticamente la comisión.
+Se crea el entorno personalizado `TradingEnv` usando **Gymnasium**.
+* **Reloj de decisión:** en el día \(t\) el agente observa el retorno de ayer, opera al close de hoy y el PnL se marca con el close de mañana. Train (80%) y test (20%) son cronológicos.
+* **Fricción de mercado:** comisión del 0.1% (`transaction_fee = 0.001`) sobre el notional de cada rebalanceo. Capital inicial: $100,000.
+* **Valuación:** mark-to-market al último close, sin venta forzada. Buy & Hold usa la misma convención.
 
 ## 3. Diseño e Iteración de la Función de Recompensa
 
-* **La Recompensa:** Se definió como el *cambio porcentual del patrimonio neto (Net Worth)* diario. Si el agente toma decisiones que hacen crecer el portafolio (descontando comisiones), recibe un premio; si pierde valor, recibe un castigo.
+Se compararon dos \(r_t\) (20.000 steps, solo train):
+
+* `simple`: \((V_{t+1}-V_t)/V_t\) → −1,41 % en train, **99,5 % del tiempo en efectivo**.
+* `log`: \(\log(V_{t+1}/V_t)\) → −0,71 % en train, **misma política de cash**.
+
+Se eligió **simple** (fórmula del enunciado). Log no se llevó a test: no cambió la política.
 
 ## 4. Entrenamiento del Agente (DQN)
 
-* **Algoritmo y Herramientas:** Utilizamos el algoritmo **DQN** de la librería *Stable-Baselines3*. Se Configuran hiperparámetros desde el archivo `tesla_dqn.yaml` . Se usa **MLflow** para registrar cada experimento.
-* **Optimización:** Integramos **Optuna** para buscar la mejor combinación de tasa de aprendizaje (`learning_rate`) y tamaño de lote (`batch_size`), dándonos un enfoque científico en lugar de probar al azar.
+* **Algoritmo:** DQN de Stable-Baselines3 (`MlpPolicy`), semilla **42**, 200.000 timesteps, MLflow.
+* **Optuna:** 10 trials sobre `learning_rate` y `batch_size`. Cada trial entrena en el 80 % del train y evalúa greedy en el 20 % final (**val**). El test no se usa. Ganador: `lr ≈ 2.75e-5`, `batch_size = 32` (+4,69 % en val). Esos valores quedaron en `configs/tesla_dqn.yaml`.
 
 ## 5. Evaluación contra Baselines (Datos Held-out)
 
-Evaluamos a nuestro modelo campeón sobre el 20% de los datos que jamás había visto (`test_tesla.csv`). Para saber si el agente realmente es inteligente, lo comparamos con dos estrategias base:
+Una sola evaluación en `test_tesla.csv`, misma valuación mark-to-market para todos:
 
-1. **Baseline - Comprar y Mantener (*Buy & Hold*):** Ganó un **16.27%**. El periodo de prueba fue fuertemente alcista.
-2. **Baseline - Agente Aleatorio:** Ganó un **15.24%** (por pura inercia del mercado alcista, tomando decisiones al azar).
-3. **Nuestro Agente DQN:** Logró un **2.46%** asumiendo las comisiones, y un **4.50%** en un experimento sin cobro de comision por operacion realizada. 
+| Estrategia | Retorno | Máx. drawdown | Costos |
+|---|---|---|---|
+| Agente DQN | **−1,60 %** | **−6,16 %** | **$1.405** |
+| Comprar y mantener | +17,25 % | −7,18 % | $99,90 |
+| Aleatorio (media 10) | +3,30 % | −9,20 % | $2.265 |
+
+Figuras: `saves/equity_curve.png`, `saves/dqn_positions.png`.
 
 ## 6. Discusión y Reflexión
 
-* **El peso de las comisiones:** Nuestro agente ganó menos que un *Buy & Hold* pasivo. Se visualiza con estor que en mercados explosivamente alcistas, operar frecuentemente es castigado duramente por las comisiones. 
-* **Aversión al riesgo:** La política que aprendió nuestro modelo DQN prioriza proteger el capital en escenarios de volatilidad, operando de forma conservadora.
-* **Estudios de ablación:** Al entrenar al agente con la comisión en `0.0`, vimos un aumento inmediato en el rendimiento, demostrando que la fricción del mercado es el principal freno de los agentes de trading automatizado.
+* **No-estacionariedad:** train bajista (−27 %) y test alcista (+16 %). El agente aprendió a proteger capital y no se subió al rally. Por eso pierde contra Buy & Hold.
+* **Reward hacking suave:** en train, quedarse en cash maximiza \(r\). Simple y log produjeron esa misma conducta.
+* **Protocolo:** no se restauró un checkpoint anterior que en test daba +2,78 %. Elegirlo ahora usaría el held-out para seleccionar el campeón.
+* **Informe para entrega:** `informes/Informe_AgenteInversor.docx` (completar la reflexión individual, sección 11).
 
