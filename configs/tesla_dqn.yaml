@@ -3,8 +3,10 @@ env: Tesla-Daily
 algo: dqn
 timesteps: 200_000
 eval_episodes: 10
+seed: 42
+reward: simple
 hyperparams:
-  learning_rate: 0.0001
+  learning_rate: 2.7506271155371943e-05  # Optuna, maximiza retorno en val
   buffer_size: 50_000
   batch_size: 32
   learning_starts: 1000
