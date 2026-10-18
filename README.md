@@ -16,9 +16,19 @@ Profesor: Emilio Muñoz Pérez
 | Saud Mauricio Gonzalez Rodriguez | saudgoro@unisabana.edu.co |
 | Luis Alfonso Fajardo Andrade | luisfaan@unisabana.edu.co |
 
-¡Bienvenidos a nuestro proyecto de aprendizaje por refuerzo! En este repositorio exploramos cómo enseñar a un agente de Inteligencia Artificial a tomar decisiones de inversión en la bolsa de valores (específicamente con acciones de Tesla - TSLA) utilizando **Deep Q-Network (DQN)**. 
+¡Bienvenidos a nuestro proyecto de aprendizaje por refuerzo! En este repositorio exploramos cómo enseñar a un agente de Inteligencia Artificial a tomar decisiones de inversión en la bolsa de valores (específicamente con acciones de Tesla - TSLA) utilizando **Deep Q-Network (DQN)**.
 
-Este proyecto fue desarrollado con fines académicos para la clase de Reinforcement Learning (RL). A continuación, documentamos paso a paso proceso, experimentos y lecciones aprendidas.
+Hay **dos iteraciones**. El código de esta rama es la segunda. La primera no se borra: queda en el PDF del grupo.
+
+| | Iteración 1 — entrega inicial | Iteración 2 — esta rama |
+|---|---|---|
+| Informes | [`informes/U5-ProyFinal-AgenteDQN-RL-TradingFinanciero_v1.pdf`](informes/U5-ProyFinal-AgenteDQN-RL-TradingFinanciero_v1.pdf) | [`informes/Informe_AgenteInversor.pdf`](informes/Informe_AgenteInversor.pdf) |
+| Capital | $10.000 | $100.000 |
+| Reloj | retorno de hoy + trade al close de hoy | retorno de ayer; trade hoy; PnL mañana |
+| Optuna | en el repo; no define campeón con val limpia | train/val del train; el test no se usa para elegir |
+| DQN / B&H / aleatorio | 2,46 % / 16,27 % / 15,24 % | −1,60 % / +17,25 % / +3,30 % (media 10) |
+
+La iteración 1 es el primer entregable qu eejecutamos. La iteración 2 no “corrige el Excel para que gane”: corrige el método (reloj, valuación, recompensa, Optuna). Un resultado negativo en test, con protocolo mas estricto, sigue siendo un proyecto válido ;) .
 
 ---
 
@@ -90,7 +100,7 @@ Se compararon dos \(r_t\) (20.000 steps, solo train):
 * `simple`: \((V_{t+1}-V_t)/V_t\) → −1,41 % en train, **99,5 % del tiempo en efectivo**.
 * `log`: \(\log(V_{t+1}/V_t)\) → −0,71 % en train, **misma política de cash**.
 
-Se eligió **simple** (fórmula del enunciado). Log no se llevó a test: no cambió la política.
+Se eligió **simple**. Log no se llevó a test: no cambió la política.
 
 ## 4. Entrenamiento del Agente (DQN)
 
@@ -114,5 +124,7 @@ Figuras: `saves/equity_curve.png`, `saves/dqn_positions.png`.
 * **No-estacionariedad:** train bajista (−27 %) y test alcista (+16 %). El agente aprendió a proteger capital y no se subió al rally. Por eso pierde contra Buy & Hold.
 * **Reward hacking suave:** en train, quedarse en cash maximiza \(r\). Simple y log produjeron esa misma conducta.
 * **Protocolo:** no se restauró un checkpoint anterior que en test daba +2,78 %. Elegirlo ahora usaría el held-out para seleccionar el campeón.
-* **Informe para entrega:** `informes/Informe_AgenteInversor.docx` (completar la reflexión individual, sección 11).
+* **Informes (carpeta `informes/`):**
+  * Iteración 1: `U5-ProyFinal-AgenteDQN-RL-TradingFinanciero_v1.pdf`
+  * Iteración 2: `Informe_AgenteInversor.pdf`
 
